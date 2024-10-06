@@ -14,7 +14,7 @@ func main() {
 		panic(err)
 	}
 	processador := newProcessador(strings.Split(string(instruções), "\n"))
-	err = processador.Processar()
+	err = processador.processar()
 	if err != nil {
 		panic(err)
 	}
@@ -34,10 +34,12 @@ const (
 )
 
 type instrução struct {
-	linhaDeOrigem string
-	tipo          TipoDeInstrução
-	parâmetros    []string
-	valores       []int
+	linhaDeOrigem      string
+	tipo               TipoDeInstrução
+	parâmetros         []string
+	valores            []int
+	resultadoAlgébrico int
+	resultadoBooleano  bool
 }
 
 func decodificarInstrução(linhaDeOrigem string) (string, *instrução, error) {
@@ -112,42 +114,58 @@ func (p *processador) obterPróximaInstrução() (string, error) {
 func (p *processador) carregarValoresDosRegistradores() error {
 	switch p.decode.tipo {
 	case Add, Sub:
-        reg1, err := strconv.Atoi(p.decode.parâmetros[1])
-        if err != nil {
-            return err
-        }
-        reg2, err := strconv.Atoi(p.decode.parâmetros[2])
-        if err != nil {
-            return err
-        }
-        p.decode.valores = append(p.decode.valores, p.registradores[reg1])
-        p.decode.valores = append(p.decode.valores, p.registradores[reg2])
-    case Beq:
-        reg0, err := strconv.Atoi(p.decode.parâmetros[0])
-        if err != nil {
-            return err
-        }
-        reg1, err := strconv.Atoi(p.decode.parâmetros[1])
-        if err != nil {
-            return err
-        }
-        p.decode.valores = append(p.decode.valores, p.registradores[reg0])
-        p.decode.valores = append(p.decode.valores, p.registradores[reg1])
-    case Lw, Sw:
-        reg0, err := strconv.Atoi(p.decode.parâmetros[0])
-        if err != nil {
-            return err
-        }
-        p.decode.valores = append(p.decode.valores, reg0)
-    case Noop, Halt:
-        return nil
+		reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+		if err != nil {
+			return err
+		}
+		reg2, err := strconv.Atoi(p.decode.parâmetros[2])
+		if err != nil {
+			return err
+		}
+		p.decode.valores = append(p.decode.valores, p.registradores[reg1])
+		p.decode.valores = append(p.decode.valores, p.registradores[reg2])
+	case Beq:
+		reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+		if err != nil {
+			return err
+		}
+		reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+		if err != nil {
+			return err
+		}
+		p.decode.valores = append(p.decode.valores, p.registradores[reg0])
+		p.decode.valores = append(p.decode.valores, p.registradores[reg1])
+	case Lw, Sw:
+		reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+		if err != nil {
+			return err
+		}
+		p.decode.valores = append(p.decode.valores, reg0)
+	case Noop, Halt:
+		return nil
 	default:
-		return errors.New("Instrução inválida.")
+		return errors.New("Instrução [" + p.decode.linhaDeOrigem + "] é inválida e não pode ser decodificada.")
 	}
-    return nil
+	return nil
 }
 
-func (p *processador) Processar() error {
+func (p *processador) executarInstrução() error {
+	switch p.execute.tipo {
+	case Add:
+		p.execute.resultadoAlgébrico = p.execute.valores[0] + p.execute.valores[1]
+	case Sub:
+		p.execute.resultadoAlgébrico = p.execute.valores[0] - p.execute.valores[1]
+	case Beq:
+		p.execute.resultadoBooleano = p.execute.valores[0] == p.execute.valores[1]
+    case Lw, Sw, Noop, Halt:
+        return nil
+    default:
+		return errors.New("Instrução [" + p.execute.linhaDeOrigem + "] é inválida e não pode ser executada.")
+	}
+	return nil
+}
+
+func (p *processador) processar() error {
 	var err error
 
 	// fetch
@@ -166,13 +184,17 @@ func (p *processador) Processar() error {
 	if label != "" {
 		p.labelsInstruções[label] = p.posiçõesDasInstruções[1]
 	}
-    err = p.carregarValoresDosRegistradores()
+	err = p.carregarValoresDosRegistradores()
+	if err != nil {
+		return err
+	}
+
+	// execute
+    err = p.executarInstrução()
     if err != nil {
         return err
     }
 
-	// execute
-    
 	// memoryAccess
 	// writeBack
 
