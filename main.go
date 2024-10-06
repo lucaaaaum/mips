@@ -1,7 +1,16 @@
 package main
 
-func main() {
+import (
+	"os"
+	"strings"
+)
 
+func main() {
+	instruções, err := os.ReadFile(os.Args[0])
+    if err != nil {
+        panic(err)
+    }
+    processador := NewProcessador(strings.Split(string(instruções), "\n"))
 }
 
 type TipoDeInstrução int
@@ -36,4 +45,19 @@ type processador struct {
 	decode, execute, memoryAccess, writeBack instrução
 }
 
+func NewProcessador(instruções []string) *processador {
+    return &processador{
+        instruções: instruções,
+    }
+}
 
+func (p *processador) Processar() error {
+    // fetch
+    
+    // decode
+    // execute
+    // memoryAccess
+    // writeBack
+    // rotacionar instruções
+    return nil
+}
