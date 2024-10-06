@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -10,7 +12,11 @@ func main() {
     if err != nil {
         panic(err)
     }
-    processador := NewProcessador(strings.Split(string(instruções), "\n"))
+    processador := newProcessador(strings.Split(string(instruções), "\n"))
+    err = processador.Processar()
+    if err != nil {
+        panic(err)
+    }
 }
 
 type TipoDeInstrução int
@@ -33,6 +39,10 @@ type instrução struct {
 	valores       []int
 }
 
+type name struct {
+    
+}
+
 type processador struct {
 	clock                                    int
 	pc                                       int
@@ -45,16 +55,28 @@ type processador struct {
 	decode, execute, memoryAccess, writeBack instrução
 }
 
-func NewProcessador(instruções []string) *processador {
+func newProcessador(instruções []string) *processador {
     return &processador{
         instruções: instruções,
     }
 }
 
+func (p *processador) obterPróximaInstrução() (string, error) {
+    if p.pc < 0 || p.pc > len(p.instruções) - 1 {
+        return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
+    }
+    return p.instruções[p.pc], nil
+}
+
 func (p *processador) Processar() error {
+    var err error
     // fetch
-    
+    p.fetch, err = p.obterPróximaInstrução()
+    if err != nil {
+        return err
+    }
     // decode
+
     // execute
     // memoryAccess
     // writeBack
