@@ -4,19 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 func main() {
 	instruções, err := os.ReadFile(os.Args[0])
-    if err != nil {
-        panic(err)
-    }
-    processador := newProcessador(strings.Split(string(instruções), "\n"))
-    err = processador.Processar()
-    if err != nil {
-        panic(err)
-    }
+	if err != nil {
+		panic(err)
+	}
+	processador := newProcessador(strings.Split(string(instruções), "\n"))
+	err = processador.Processar()
+	if err != nil {
+		panic(err)
+	}
 }
 
 type TipoDeInstrução int
@@ -39,47 +40,150 @@ type instrução struct {
 	valores       []int
 }
 
-type name struct {
-    
+func decodificarInstrução(linhaDeOrigem string) (string, *instrução, error) {
+	var label string
+	var tipo TipoDeInstrução
+	var parâmetros []string
+
+	partes := strings.Split(linhaDeOrigem, " ")
+	tipo, err := obterTipoDeInstrução(partes[0])
+	if err != nil {
+		// Pode ser que o primeiro argumento não seja uma instrução, mas um label
+		label = partes[0]
+		tipo, err = obterTipoDeInstrução(partes[1])
+		parâmetros = partes[2:]
+		if err != nil {
+			return label, &instrução{linhaDeOrigem: linhaDeOrigem, tipo: tipo, parâmetros: parâmetros}, err
+		}
+	} else {
+		parâmetros = partes[1:]
+	}
+
+	return label, &instrução{linhaDeOrigem: linhaDeOrigem, tipo: tipo, parâmetros: parâmetros}, nil
+}
+
+func obterTipoDeInstrução(tipo string) (TipoDeInstrução, error) {
+	switch strings.ToUpper(tipo) {
+	case "ADD":
+		return Add, nil
+	case "SUB":
+		return Sub, nil
+	case "BEQ":
+		return Beq, nil
+	case "LW":
+		return Lw, nil
+	case "SW":
+		return Sw, nil
+	case "NOOP":
+		return Noop, nil
+	case "HALT":
+		return Halt, nil
+	default:
+		return Inválida, errors.New("A string [" + tipo + "] não representa uma instrução conhecida.")
+	}
 }
 
 type processador struct {
 	clock                                    int
 	pc                                       int
 	registradores                            [32]int
-	labelsRegistradores                      map[string]int
 	memória                                  []int
 	labelsMemória                            map[string]int
 	instruções                               []string
-	fetch                                    string
-	decode, execute, memoryAccess, writeBack instrução
+	labelsInstruções                         map[string]int
+	fetch, linhaDeOrigemDecode               string
+	decode, execute, memoryAccess, writeBack *instrução
+	posiçõesDasInstruções                    [5]int
 }
 
 func newProcessador(instruções []string) *processador {
-    return &processador{
-        instruções: instruções,
-    }
+	return &processador{
+		instruções: instruções,
+	}
 }
 
 func (p *processador) obterPróximaInstrução() (string, error) {
-    if p.pc < 0 || p.pc > len(p.instruções) - 1 {
-        return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
-    }
-    return p.instruções[p.pc], nil
+	if p.pc < 0 || p.pc > len(p.instruções)-1 {
+		return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
+	}
+	return p.instruções[p.pc], nil
+}
+
+func (p *processador) carregarValoresDosRegistradores() error {
+	switch p.decode.tipo {
+	case Add, Sub:
+        reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+        if err != nil {
+            return err
+        }
+        reg2, err := strconv.Atoi(p.decode.parâmetros[2])
+        if err != nil {
+            return err
+        }
+        p.decode.valores = append(p.decode.valores, p.registradores[reg1])
+        p.decode.valores = append(p.decode.valores, p.registradores[reg2])
+    case Beq:
+        reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+        if err != nil {
+            return err
+        }
+        reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+        if err != nil {
+            return err
+        }
+        p.decode.valores = append(p.decode.valores, p.registradores[reg0])
+        p.decode.valores = append(p.decode.valores, p.registradores[reg1])
+    case Lw, Sw:
+        reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+        if err != nil {
+            return err
+        }
+        p.decode.valores = append(p.decode.valores, reg0)
+    case Noop, Halt:
+        return nil
+	default:
+		return errors.New("Instrução inválida.")
+	}
+    return nil
 }
 
 func (p *processador) Processar() error {
-    var err error
-    // fetch
-    p.fetch, err = p.obterPróximaInstrução()
+	var err error
+
+	// fetch
+	p.fetch, err = p.obterPróximaInstrução()
+	if err != nil {
+		return err
+	}
+	p.posiçõesDasInstruções[0] = p.pc
+
+	// decode
+	var label string
+	label, p.decode, err = decodificarInstrução(p.linhaDeOrigemDecode)
+	if err != nil {
+		return err
+	}
+	if label != "" {
+		p.labelsInstruções[label] = p.posiçõesDasInstruções[1]
+	}
+    err = p.carregarValoresDosRegistradores()
     if err != nil {
         return err
     }
-    // decode
 
-    // execute
-    // memoryAccess
-    // writeBack
-    // rotacionar instruções
-    return nil
+	// execute
+    
+	// memoryAccess
+	// writeBack
+
+	// rotacionar instruções
+	p.fetch = ""
+	p.linhaDeOrigemDecode = p.fetch
+	p.writeBack = p.memoryAccess
+	p.memoryAccess = p.execute
+	p.execute = nil
+	for i := 4; i > 0; i-- {
+		p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
+	}
+	return nil
 }
