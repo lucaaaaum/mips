@@ -10,15 +10,15 @@ import (
 
 func main() {
     quantidadeDeArgumentos := len(os.Args)
-    if quantidadeDeArgumentos < 1 {
+    if quantidadeDeArgumentos < 2 {
         panic("Deve ser fornecido um arquivo de instruções.")
     }
 
-    if quantidadeDeArgumentos > 1 {
+    if quantidadeDeArgumentos > 2 {
         panic("Somente um arquivo pode ser fornecido por vez.")
     }
 
-	instruções, err := os.ReadFile(os.Args[0])
+	instruções, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		panic(err)
 	}
