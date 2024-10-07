@@ -285,76 +285,82 @@ func (p *processador) escreverRegistradores() error {
 func (p *processador) processar() error {
 	var err error
 
-	// fetch
-	p.fetch, err = p.obterPróximaInstrução()
-	if err != nil {
-		return err
-	}
-	p.posiçõesDasInstruções[0] = p.pc
-
-	// incrementar PC
-	p.pc++
-
-	// decode
-	var label string
-	label, p.decode, err = decodificarInstrução(p.linhaDeOrigemDecode)
-	if err != nil {
-		return err
-	}
-	if label != "" {
-		p.labelsInstruções[label] = p.posiçõesDasInstruções[1]
-	}
-	err = p.carregarValoresDosRegistradores()
-	if err != nil {
-		return err
-	}
-
-	// execute
-	// caso seja BEQ, pc será manualmente alterado
-	err = p.executarInstrução()
-	if err != nil {
-		return err
-	}
-
-	// memoryAccess
-	err = p.acessarMemória()
-	if err != nil {
-		return err
-	}
-
-	// writeBack
-	err = p.escreverRegistradores()
-	if err != nil {
-		return err
-	}
-
-	// imprimir
-    fmt.Printf("clock: %v\n", p.clock)
-    fmt.Printf("pc: %v\n", p.pc)
-	for i := 0; i < len(p.instruções); i++ {
-		prefixoDaLinha := "       "
-		if i == p.posiçõesDasInstruções[0] {
-			prefixoDaLinha = "IF  -> "
-		} else if i == p.posiçõesDasInstruções[1] {
-			prefixoDaLinha = "ID  -> "
-		} else if i == p.posiçõesDasInstruções[2] {
-			prefixoDaLinha = "EX  -> "
-		} else if i == p.posiçõesDasInstruções[3] {
-			prefixoDaLinha = "Mem -> "
-		} else if i == p.posiçõesDasInstruções[4] {
-			prefixoDaLinha = "WB  -> "
+	for true {
+		// fetch
+		p.fetch, err = p.obterPróximaInstrução()
+		if err != nil {
+			return err
 		}
-		fmt.Println(prefixoDaLinha + p.instruções[i])
-	}
+		p.posiçõesDasInstruções[0] = p.pc
 
-	// rotacionar instruções
-	p.fetch = ""
-	p.linhaDeOrigemDecode = p.fetch
-	p.writeBack = p.memoryAccess
-	p.memoryAccess = p.execute
-	p.execute = nil
-	for i := 4; i > 0; i-- {
-		p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
+		// incrementar PC
+		p.pc++
+
+		// decode
+		var label string
+		label, p.decode, err = decodificarInstrução(p.linhaDeOrigemDecode)
+		if err != nil {
+			return err
+		}
+		if label != "" {
+			p.labelsInstruções[label] = p.posiçõesDasInstruções[1]
+		}
+		err = p.carregarValoresDosRegistradores()
+		if err != nil {
+			return err
+		}
+
+		// execute
+		// caso seja BEQ, pc será manualmente alterado
+		err = p.executarInstrução()
+		if err != nil {
+			return err
+		}
+
+		// memoryAccess
+		err = p.acessarMemória()
+		if err != nil {
+			return err
+		}
+
+		// writeBack
+		err = p.escreverRegistradores()
+		if err != nil {
+			return err
+		}
+
+		// imprimir
+		fmt.Printf("clock: %v\n", p.clock)
+		fmt.Printf("pc: %v\n", p.pc)
+		fmt.Printf("registradores: %v\n", p.registradores)
+		fmt.Printf("memória: %v\n", p.memória)
+        fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
+        fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
+		for i := 0; i < len(p.instruções); i++ {
+			identificadorDaLinha := "       "
+			if i == p.posiçõesDasInstruções[0] {
+				identificadorDaLinha = "IF  -> "
+			} else if i == p.posiçõesDasInstruções[1] {
+				identificadorDaLinha = "ID  -> "
+			} else if i == p.posiçõesDasInstruções[2] {
+				identificadorDaLinha = "EX  -> "
+			} else if i == p.posiçõesDasInstruções[3] {
+				identificadorDaLinha = "Mem -> "
+			} else if i == p.posiçõesDasInstruções[4] {
+				identificadorDaLinha = "WB  -> "
+			}
+			fmt.Println("[" + fmt.Sprint(i) + "]" + identificadorDaLinha + p.instruções[i])
+		}
+
+		// rotacionar instruções
+		p.fetch = ""
+		p.linhaDeOrigemDecode = p.fetch
+		p.writeBack = p.memoryAccess
+		p.memoryAccess = p.execute
+		p.execute = nil
+		for i := 4; i > 0; i-- {
+			p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
+		}
 	}
 	return nil
 }
