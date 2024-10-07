@@ -9,6 +9,15 @@ import (
 )
 
 func main() {
+    quantidadeDeArgumentos := len(os.Args)
+    if quantidadeDeArgumentos < 1 {
+        panic("Deve ser fornecido um arquivo de instruções.")
+    }
+
+    if quantidadeDeArgumentos > 1 {
+        panic("Somente um arquivo pode ser fornecido por vez.")
+    }
+
 	instruções, err := os.ReadFile(os.Args[0])
 	if err != nil {
 		panic(err)
@@ -40,6 +49,7 @@ type instrução struct {
 	valores            []int
 	resultadoAlgébrico int
 	resultadoBooleano  bool
+	resultadoMemória   int
 }
 
 func decodificarInstrução(linhaDeOrigem string) (string, *instrução, error) {
@@ -135,12 +145,45 @@ func (p *processador) carregarValoresDosRegistradores() error {
 		}
 		p.decode.valores = append(p.decode.valores, p.registradores[reg0])
 		p.decode.valores = append(p.decode.valores, p.registradores[reg1])
-	case Lw, Sw:
-		reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+	case Lw:
+		regOffset, err := strconv.Atoi(p.decode.parâmetros[0])
 		if err != nil {
 			return err
 		}
-		p.decode.valores = append(p.decode.valores, reg0)
+		p.decode.valores = append(p.decode.valores, regOffset)
+		regDestino, err := strconv.Atoi(p.decode.parâmetros[1])
+		if err != nil {
+			return err
+		}
+		p.decode.valores = append(p.decode.valores, regDestino)
+		parâmetroDePosiçãoDeMemória := p.decode.parâmetros[2]
+		if éNúmero(parâmetroDePosiçãoDeMemória) {
+			posiçãoMemória, err := strconv.Atoi(parâmetroDePosiçãoDeMemória)
+			if err != nil {
+				return err
+			}
+			p.decode.valores = append(p.decode.valores, posiçãoMemória)
+		} else {
+			posiçãoMemória := p.labelsMemória[parâmetroDePosiçãoDeMemória]
+			p.decode.valores = append(p.decode.valores, posiçãoMemória)
+		}
+	case Sw:
+		regOffset, err := strconv.Atoi(p.decode.parâmetros[0])
+		if err != nil {
+			return err
+		}
+		p.decode.valores = append(p.decode.valores, regOffset)
+		parâmetroDePosiçãoDeMemória := p.decode.parâmetros[2]
+		if éNúmero(parâmetroDePosiçãoDeMemória) {
+			posiçãoMemória, err := strconv.Atoi(parâmetroDePosiçãoDeMemória)
+			if err != nil {
+				return err
+			}
+			p.decode.valores = append(p.decode.valores, posiçãoMemória)
+		} else {
+			posiçãoMemória := p.labelsMemória[parâmetroDePosiçãoDeMemória]
+			p.decode.valores = append(p.decode.valores, posiçãoMemória)
+		}
 	case Noop, Halt:
 		return nil
 	default:
@@ -149,18 +192,72 @@ func (p *processador) carregarValoresDosRegistradores() error {
 	return nil
 }
 
+func éNúmero(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
 func (p *processador) executarInstrução() error {
 	switch p.execute.tipo {
-	case Add:
+	case Add, Lw, Sw:
 		p.execute.resultadoAlgébrico = p.execute.valores[0] + p.execute.valores[1]
 	case Sub:
 		p.execute.resultadoAlgébrico = p.execute.valores[0] - p.execute.valores[1]
 	case Beq:
 		p.execute.resultadoBooleano = p.execute.valores[0] == p.execute.valores[1]
-    case Lw, Sw, Noop, Halt:
-        return nil
-    default:
+        if p.execute.resultadoBooleano {
+            parâmetroDePosiçãoDeInstrução := p.execute.parâmetros[2]
+            if éNúmero(parâmetroDePosiçãoDeInstrução) {
+                novoPc, err := strconv.Atoi(parâmetroDePosiçãoDeInstrução)
+                if err != nil {
+                    return err
+                }
+                p.pc = novoPc
+            } else {
+                novoPc := p.labelsInstruções[parâmetroDePosiçãoDeInstrução]
+                p.pc = novoPc
+            }
+        }
+	case Noop, Halt:
+		return nil
+	default:
 		return errors.New("Instrução [" + p.execute.linhaDeOrigem + "] é inválida e não pode ser executada.")
+	}
+	return nil
+}
+
+func (p *processador) acessarMemória() error {
+	switch p.memoryAccess.tipo {
+	case Lw:
+		p.memoryAccess.resultadoMemória = p.memória[p.memoryAccess.resultadoAlgébrico]
+	case Sw:
+		p.memória[p.memoryAccess.resultadoAlgébrico] = p.memoryAccess.valores[2]
+	case Add, Sub, Beq, Noop, Halt:
+		return nil
+	default:
+		return errors.New("Instrução [" + p.memoryAccess.linhaDeOrigem + "] é inválida e não pode acessar a memória.")
+	}
+	return nil
+}
+
+func (p *processador) escreverRegistradores() error {
+	switch p.writeBack.tipo {
+	case Add, Sub:
+		regDestino, err := strconv.Atoi(p.writeBack.parâmetros[2])
+		if err != nil {
+			return err
+		}
+		p.registradores[regDestino] = p.writeBack.resultadoAlgébrico
+	case Lw:
+		regDestino, err := strconv.Atoi(p.writeBack.parâmetros[1])
+		if err != nil {
+			return err
+		}
+		p.registradores[regDestino] = p.writeBack.resultadoMemória
+	case Beq, Noop, Halt:
+		return nil
+	default:
+		return errors.New("Instrução [" + p.writeBack.linhaDeOrigem + "] é inválida e não pode acessar os registradores para write back.")
 	}
 	return nil
 }
@@ -174,6 +271,9 @@ func (p *processador) processar() error {
 		return err
 	}
 	p.posiçõesDasInstruções[0] = p.pc
+
+    // incrementar PC
+    p.pc++
 
 	// decode
 	var label string
@@ -190,13 +290,23 @@ func (p *processador) processar() error {
 	}
 
 	// execute
-    err = p.executarInstrução()
+    // caso seja BEQ, pc será manualmente alterado
+	err = p.executarInstrução()
+	if err != nil {
+		return err
+	}
+
+	// memoryAccess
+	err = p.acessarMemória()
+	if err != nil {
+		return err
+	}
+
+	// writeBack
+    err = p.escreverRegistradores()
     if err != nil {
         return err
     }
-
-	// memoryAccess
-	// writeBack
 
 	// rotacionar instruções
 	p.fetch = ""
