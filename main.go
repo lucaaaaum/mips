@@ -18,11 +18,15 @@ func main() {
 		panic("Somente um arquivo pode ser fornecido por vez.")
 	}
 
-	instruções, err := os.ReadFile(os.Args[1])
+	conteúdoDoArquivo, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		panic(err)
 	}
-	processador := newProcessador(strings.Split(string(instruções), "\n"))
+    instruções := strings.Split(string(conteúdoDoArquivo), "\n")
+    for i := 0; i < len(instruções); i++ {
+        instruções[i] = strings.Trim(instruções[i], " ")
+    }
+	processador := newProcessador(instruções)
 	err = processador.processar()
 	if err != nil {
 		panic(err)
@@ -115,6 +119,18 @@ type processador struct {
 func newProcessador(instruções []string) *processador {
 	return &processador{
 		instruções: instruções,
+        labelsMemória: make(map[string]int),
+        labelsInstruções: make(map[string]int),
+	}
+}
+
+func (p *processador) identificarLabels() {
+	for i := 0; i < len(p.instruções); i++ {
+		partes := strings.Split(p.instruções[i], " ")
+		_, err := obterTipoDeInstrução(partes[0])
+		if err != nil {
+			p.labelsInstruções[partes[0]] = i
+		}
 	}
 }
 
@@ -285,6 +301,8 @@ func (p *processador) escreverRegistradores() error {
 func (p *processador) processar() error {
 	var err error
 
+    p.identificarLabels()
+
 	for true {
 		// fetch
 		p.fetch, err = p.obterPróximaInstrução()
@@ -334,8 +352,8 @@ func (p *processador) processar() error {
 		fmt.Printf("pc: %v\n", p.pc)
 		fmt.Printf("registradores: %v\n", p.registradores)
 		fmt.Printf("memória: %v\n", p.memória)
-        fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
-        fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
+		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
+		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
 		for i := 0; i < len(p.instruções); i++ {
 			identificadorDaLinha := "       "
 			if i == p.posiçõesDasInstruções[0] {
