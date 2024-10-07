@@ -9,14 +9,14 @@ import (
 )
 
 func main() {
-    quantidadeDeArgumentos := len(os.Args)
-    if quantidadeDeArgumentos < 2 {
-        panic("Deve ser fornecido um arquivo de instruções.")
-    }
+	quantidadeDeArgumentos := len(os.Args)
+	if quantidadeDeArgumentos < 2 {
+		panic("Deve ser fornecido um arquivo de instruções.")
+	}
 
-    if quantidadeDeArgumentos > 2 {
-        panic("Somente um arquivo pode ser fornecido por vez.")
-    }
+	if quantidadeDeArgumentos > 2 {
+		panic("Somente um arquivo pode ser fornecido por vez.")
+	}
 
 	instruções, err := os.ReadFile(os.Args[1])
 	if err != nil {
@@ -56,6 +56,10 @@ func decodificarInstrução(linhaDeOrigem string) (string, *instrução, error) 
 	var label string
 	var tipo TipoDeInstrução
 	var parâmetros []string
+
+	if linhaDeOrigem == "" {
+		return "", nil, nil
+	}
 
 	partes := strings.Split(linhaDeOrigem, " ")
 	tipo, err := obterTipoDeInstrução(partes[0])
@@ -122,6 +126,10 @@ func (p *processador) obterPróximaInstrução() (string, error) {
 }
 
 func (p *processador) carregarValoresDosRegistradores() error {
+	if p.decode == nil {
+		return nil
+	}
+
 	switch p.decode.tipo {
 	case Add, Sub:
 		reg1, err := strconv.Atoi(p.decode.parâmetros[1])
@@ -198,6 +206,10 @@ func éNúmero(s string) bool {
 }
 
 func (p *processador) executarInstrução() error {
+	if p.execute == nil {
+		return nil
+	}
+
 	switch p.execute.tipo {
 	case Add, Lw, Sw:
 		p.execute.resultadoAlgébrico = p.execute.valores[0] + p.execute.valores[1]
@@ -205,19 +217,19 @@ func (p *processador) executarInstrução() error {
 		p.execute.resultadoAlgébrico = p.execute.valores[0] - p.execute.valores[1]
 	case Beq:
 		p.execute.resultadoBooleano = p.execute.valores[0] == p.execute.valores[1]
-        if p.execute.resultadoBooleano {
-            parâmetroDePosiçãoDeInstrução := p.execute.parâmetros[2]
-            if éNúmero(parâmetroDePosiçãoDeInstrução) {
-                novoPc, err := strconv.Atoi(parâmetroDePosiçãoDeInstrução)
-                if err != nil {
-                    return err
-                }
-                p.pc = novoPc
-            } else {
-                novoPc := p.labelsInstruções[parâmetroDePosiçãoDeInstrução]
-                p.pc = novoPc
-            }
-        }
+		if p.execute.resultadoBooleano {
+			parâmetroDePosiçãoDeInstrução := p.execute.parâmetros[2]
+			if éNúmero(parâmetroDePosiçãoDeInstrução) {
+				novoPc, err := strconv.Atoi(parâmetroDePosiçãoDeInstrução)
+				if err != nil {
+					return err
+				}
+				p.pc = novoPc
+			} else {
+				novoPc := p.labelsInstruções[parâmetroDePosiçãoDeInstrução]
+				p.pc = novoPc
+			}
+		}
 	case Noop, Halt:
 		return nil
 	default:
@@ -227,6 +239,10 @@ func (p *processador) executarInstrução() error {
 }
 
 func (p *processador) acessarMemória() error {
+	if p.memoryAccess == nil {
+		return nil
+	}
+
 	switch p.memoryAccess.tipo {
 	case Lw:
 		p.memoryAccess.resultadoMemória = p.memória[p.memoryAccess.resultadoAlgébrico]
@@ -241,6 +257,10 @@ func (p *processador) acessarMemória() error {
 }
 
 func (p *processador) escreverRegistradores() error {
+	if p.writeBack == nil {
+		return nil
+	}
+
 	switch p.writeBack.tipo {
 	case Add, Sub:
 		regDestino, err := strconv.Atoi(p.writeBack.parâmetros[2])
@@ -272,8 +292,8 @@ func (p *processador) processar() error {
 	}
 	p.posiçõesDasInstruções[0] = p.pc
 
-    // incrementar PC
-    p.pc++
+	// incrementar PC
+	p.pc++
 
 	// decode
 	var label string
@@ -290,7 +310,7 @@ func (p *processador) processar() error {
 	}
 
 	// execute
-    // caso seja BEQ, pc será manualmente alterado
+	// caso seja BEQ, pc será manualmente alterado
 	err = p.executarInstrução()
 	if err != nil {
 		return err
@@ -303,10 +323,29 @@ func (p *processador) processar() error {
 	}
 
 	// writeBack
-    err = p.escreverRegistradores()
-    if err != nil {
-        return err
-    }
+	err = p.escreverRegistradores()
+	if err != nil {
+		return err
+	}
+
+	// imprimir
+    fmt.Printf("clock: %v\n", p.clock)
+    fmt.Printf("pc: %v\n", p.pc)
+	for i := 0; i < len(p.instruções); i++ {
+		prefixoDaLinha := "       "
+		if i == p.posiçõesDasInstruções[0] {
+			prefixoDaLinha = "IF  -> "
+		} else if i == p.posiçõesDasInstruções[1] {
+			prefixoDaLinha = "ID  -> "
+		} else if i == p.posiçõesDasInstruções[2] {
+			prefixoDaLinha = "EX  -> "
+		} else if i == p.posiçõesDasInstruções[3] {
+			prefixoDaLinha = "Mem -> "
+		} else if i == p.posiçõesDasInstruções[4] {
+			prefixoDaLinha = "WB  -> "
+		}
+		fmt.Println(prefixoDaLinha + p.instruções[i])
+	}
 
 	// rotacionar instruções
 	p.fetch = ""
