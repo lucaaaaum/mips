@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -153,6 +154,15 @@ func (p *processador) obterPróximaInstrução() (string, error) {
 	return p.instruções[p.pc], nil
 }
 
+func (i *instrução) obterRegistradorDosParâmetros(posição int) (int, error) {
+	if posição < 0 || posição >= len(i.parâmetros) {
+		return 0, nil
+	}
+	parâmetro := i.parâmetros[posição]
+	parâmetroFormatado := strings.Trim(parâmetro, "R")
+	return strconv.Atoi(parâmetroFormatado)
+}
+
 func (p *processador) carregarValoresDosRegistradores() error {
 	if p.decode == nil {
 		return nil
@@ -160,34 +170,39 @@ func (p *processador) carregarValoresDosRegistradores() error {
 
 	switch p.decode.tipo {
 	case Add, Sub:
-		reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+		reg1, err := p.decode.obterRegistradorDosParâmetros(1)
 		if err != nil {
 			return err
 		}
-		reg2, err := strconv.Atoi(p.decode.parâmetros[2])
+		reg2, err := p.decode.obterRegistradorDosParâmetros(2)
 		if err != nil {
 			return err
 		}
 		p.decode.valores = append(p.decode.valores, p.registradores[reg1])
 		p.decode.valores = append(p.decode.valores, p.registradores[reg2])
+        fmt.Printf("p.registradores[reg1]: %v\n", p.registradores[reg1])
+        fmt.Printf("p.registradores[reg2]: %v\n", p.registradores[reg2])
+        fmt.Printf("p.decode: %v\n", p.decode)
+        fmt.Printf("reg1: %v\n", reg1)
+        fmt.Printf("reg2: %v\n", reg2)
 	case Beq:
-		reg0, err := strconv.Atoi(p.decode.parâmetros[0])
+		reg0, err := p.decode.obterRegistradorDosParâmetros(0)
 		if err != nil {
 			return err
 		}
-		reg1, err := strconv.Atoi(p.decode.parâmetros[1])
+		reg1, err := p.decode.obterRegistradorDosParâmetros(1)
 		if err != nil {
 			return err
 		}
 		p.decode.valores = append(p.decode.valores, p.registradores[reg0])
 		p.decode.valores = append(p.decode.valores, p.registradores[reg1])
 	case Lw:
-		regOffset, err := strconv.Atoi(p.decode.parâmetros[0])
+		regOffset, err := p.decode.obterRegistradorDosParâmetros(0)
 		if err != nil {
 			return err
 		}
 		p.decode.valores = append(p.decode.valores, regOffset)
-		regDestino, err := strconv.Atoi(p.decode.parâmetros[1])
+		regDestino, err := p.decode.obterRegistradorDosParâmetros(1)
 		if err != nil {
 			return err
 		}
@@ -204,7 +219,7 @@ func (p *processador) carregarValoresDosRegistradores() error {
 			p.decode.valores = append(p.decode.valores, posiçãoMemória)
 		}
 	case Sw:
-		regOffset, err := strconv.Atoi(p.decode.parâmetros[0])
+		regOffset, err := p.decode.obterRegistradorDosParâmetros(0)
 		if err != nil {
 			return err
 		}
@@ -239,7 +254,9 @@ func (p *processador) executarInstrução() error {
 	}
 
 	switch p.execute.tipo {
-	case Add, Lw, Sw:
+    case Lw, Sw:
+        p.execute.resultadoAlgébrico = p.execute.valores[0] + p.execute.valores[2]
+	case Add:
 		p.execute.resultadoAlgébrico = p.execute.valores[0] + p.execute.valores[1]
 	case Sub:
 		p.execute.resultadoAlgébrico = p.execute.valores[0] - p.execute.valores[1]
@@ -271,6 +288,7 @@ func (p *processador) acessarMemória() error {
 		return nil
 	}
 
+    fmt.Printf("p.memoryAccess: %v\n", p.memoryAccess.resultadoAlgébrico)
 	switch p.memoryAccess.tipo {
 	case Lw:
 		p.memoryAccess.resultadoMemória = p.memória[p.memoryAccess.resultadoAlgébrico]
@@ -291,13 +309,14 @@ func (p *processador) escreverRegistradores() error {
 
 	switch p.writeBack.tipo {
 	case Add, Sub:
-		regDestino, err := strconv.Atoi(p.writeBack.parâmetros[2])
+        fmt.Printf("p.writeBack: %v\n", p.writeBack)
+		regDestino, err := p.writeBack.obterRegistradorDosParâmetros(2)
 		if err != nil {
 			return err
 		}
 		p.registradores[regDestino] = p.writeBack.resultadoAlgébrico
 	case Lw:
-		regDestino, err := strconv.Atoi(p.writeBack.parâmetros[1])
+		regDestino, err := p.writeBack.obterRegistradorDosParâmetros(1)
 		if err != nil {
 			return err
 		}
@@ -333,7 +352,10 @@ func (p *processador) processar() error {
 
 	p.identificarLabels()
 
-	p.processarFills()
+	err = p.processarFills()
+	if err != nil {
+		return err
+	}
 
 	for true {
 		// fetch
@@ -403,14 +425,17 @@ func (p *processador) processar() error {
 		}
 
 		// rotacionar instruções
-		p.fetch = ""
 		p.linhaDeOrigemDecode = p.fetch
 		p.writeBack = p.memoryAccess
 		p.memoryAccess = p.execute
-		p.execute = nil
+		p.execute = p.decode
 		for i := 4; i > 0; i-- {
 			p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
 		}
+        p.clock++
+
+        reader := bufio.NewReader(os.Stdin)
+        reader.ReadString('\n')
 	}
 	return nil
 }
