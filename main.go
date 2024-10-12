@@ -22,12 +22,18 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-    instruções := strings.Split(string(conteúdoDoArquivo), "\n")
-    for i := 0; i < len(instruções); i++ {
-        instruções[i] = strings.Trim(instruções[i], " ")
-    }
-	processador := newProcessador(instruções)
-	err = processador.processar()
+	instruções := strings.Split(string(conteúdoDoArquivo), "\n")
+	instruçõesTratadas := make([]string, 0)
+	for i := 0; i < len(instruções); i++ {
+		instruções[i] = strings.TrimSpace(instruções[i])
+		if instruções[i] == "" {
+			continue
+		}
+		fmt.Printf("instruções[i]: %v\n", instruções[i])
+		instruçõesTratadas = append(instruçõesTratadas, instruções[i])
+	}
+	p := newProcessador(instruçõesTratadas)
+	err = p.processar()
 	if err != nil {
 		panic(err)
 	}
@@ -43,6 +49,7 @@ const (
 	Sw
 	Noop
 	Halt
+	Fill
 	Inválida
 )
 
@@ -98,6 +105,8 @@ func obterTipoDeInstrução(tipo string) (TipoDeInstrução, error) {
 		return Noop, nil
 	case "HALT":
 		return Halt, nil
+	case ".FILL":
+		return Fill, nil
 	default:
 		return Inválida, errors.New("A string [" + tipo + "] não representa uma instrução conhecida.")
 	}
@@ -118,9 +127,9 @@ type processador struct {
 
 func newProcessador(instruções []string) *processador {
 	return &processador{
-		instruções: instruções,
-        labelsMemória: make(map[string]int),
-        labelsInstruções: make(map[string]int),
+		instruções:       instruções,
+		labelsMemória:    make(map[string]int),
+		labelsInstruções: make(map[string]int),
 	}
 }
 
@@ -129,7 +138,10 @@ func (p *processador) identificarLabels() {
 		partes := strings.Split(p.instruções[i], " ")
 		_, err := obterTipoDeInstrução(partes[0])
 		if err != nil {
-			p.labelsInstruções[partes[0]] = i
+			tipo, _ := obterTipoDeInstrução(partes[1])
+			if tipo != Fill {
+				p.labelsInstruções[partes[0]] = i
+			}
 		}
 	}
 }
@@ -298,10 +310,30 @@ func (p *processador) escreverRegistradores() error {
 	return nil
 }
 
+func (p *processador) processarFills() error {
+	for i := len(p.instruções) - 1; i >= 0; i-- {
+		label, instrução, err := decodificarInstrução(p.instruções[i])
+		if err != nil {
+			return err
+		}
+		if instrução.tipo == Fill {
+			valorDoFill, err := strconv.Atoi(instrução.parâmetros[0])
+			if err != nil {
+				return err
+			}
+			p.memória = append(p.memória, valorDoFill)
+			p.labelsMemória[label] = len(p.memória) - 1
+		}
+	}
+	return nil
+}
+
 func (p *processador) processar() error {
 	var err error
 
-    p.identificarLabels()
+	p.identificarLabels()
+
+	p.processarFills()
 
 	for true {
 		// fetch
