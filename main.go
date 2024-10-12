@@ -422,6 +422,10 @@ func (p *processador) executarInstrução() error {
 				novoPc := p.labelsInstruções[parâmetroDePosiçãoDeInstrução]
 				p.pc = novoPc
 			}
+			p.decode = &instrução{linhaDeOrigem: "noop", tipo: Noop}
+			p.fetch = "noop"
+            p.posiçõesDasInstruções[0] = -1
+            p.posiçõesDasInstruções[1] = -1
 		}
 	case Noop, Halt:
 		return nil
