@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+    "github.com/inancgumus/screen"
 )
 
 func main() {
@@ -59,6 +60,7 @@ type processador struct {
 	fetch, linhaDeOrigemDecode               string
 	decode, execute, memoryAccess, writeBack *instrução
 	posiçõesDasInstruções                    [5]int
+	halt                                     bool
 }
 
 func newProcessador(instruções []string) *processador {
@@ -80,15 +82,41 @@ func (p *processador) processar() error {
 	}
 
 	for true {
-		// fetch
-		p.fetch, err = p.obterPróximaInstrução()
-		if err != nil {
-			return err
+		// imprimir
+        screen.Clear()
+		fmt.Printf("clock: %v\n", p.clock)
+		fmt.Printf("pc: %v\n", p.pc)
+		fmt.Printf("registradores: %v\n", p.registradores)
+		fmt.Printf("memória: %v\n", p.memória)
+		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
+		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
+		for i := 0; i < len(p.instruções); i++ {
+			identificadorDaLinha := "       "
+			if i == p.posiçõesDasInstruções[0] {
+				identificadorDaLinha = "IF  -> "
+			} else if i == p.posiçõesDasInstruções[1] {
+				identificadorDaLinha = "ID  -> "
+			} else if i == p.posiçõesDasInstruções[2] {
+				identificadorDaLinha = "EX  -> "
+			} else if i == p.posiçõesDasInstruções[3] {
+				identificadorDaLinha = "Mem -> "
+			} else if i == p.posiçõesDasInstruções[4] {
+				identificadorDaLinha = "WB  -> "
+			}
+			fmt.Println("[" + fmt.Sprint(i) + "]" + identificadorDaLinha + p.instruções[i])
 		}
-		p.posiçõesDasInstruções[0] = p.pc
 
-		// incrementar PC
-		p.pc++
+		// fetch
+		if !p.halt {
+			p.fetch, err = p.obterPróximaInstrução()
+			if err != nil {
+				return err
+			}
+			p.posiçõesDasInstruções[0] = p.pc
+
+			// incrementar PC
+			p.pc++
+		}
 
 		// decode
 		p.decode, err = decodificarInstrução(p.linhaDeOrigemDecode)
@@ -119,29 +147,6 @@ func (p *processador) processar() error {
 			return err
 		}
 
-		// imprimir
-		fmt.Printf("clock: %v\n", p.clock)
-		fmt.Printf("pc: %v\n", p.pc)
-		fmt.Printf("registradores: %v\n", p.registradores)
-		fmt.Printf("memória: %v\n", p.memória)
-		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
-		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
-		for i := 0; i < len(p.instruções); i++ {
-			identificadorDaLinha := "       "
-			if i == p.posiçõesDasInstruções[0] {
-				identificadorDaLinha = "IF  -> "
-			} else if i == p.posiçõesDasInstruções[1] {
-				identificadorDaLinha = "ID  -> "
-			} else if i == p.posiçõesDasInstruções[2] {
-				identificadorDaLinha = "EX  -> "
-			} else if i == p.posiçõesDasInstruções[3] {
-				identificadorDaLinha = "Mem -> "
-			} else if i == p.posiçõesDasInstruções[4] {
-				identificadorDaLinha = "WB  -> "
-			}
-			fmt.Println("[" + fmt.Sprint(i) + "]" + identificadorDaLinha + p.instruções[i])
-		}
-
 		// rotacionar instruções
 		p.linhaDeOrigemDecode = p.fetch
 		p.writeBack = p.memoryAccess
@@ -154,6 +159,10 @@ func (p *processador) processar() error {
 
 		reader := bufio.NewReader(os.Stdin)
 		reader.ReadString('\n')
+
+		if p.writeBack != nil && p.writeBack.tipo == Halt {
+			break
+		}
 	}
 	return nil
 }
@@ -424,10 +433,12 @@ func (p *processador) executarInstrução() error {
 			}
 			p.decode = &instrução{linhaDeOrigem: "noop", tipo: Noop}
 			p.fetch = "noop"
-            p.posiçõesDasInstruções[0] = -1
-            p.posiçõesDasInstruções[1] = -1
+			p.posiçõesDasInstruções[0] = -1
+			p.posiçõesDasInstruções[1] = -1
 		}
-	case Noop, Halt:
+	case Halt:
+		p.halt = true
+	case Noop:
 		return nil
 	default:
 		return errors.New("Instrução [" + p.execute.linhaDeOrigem + "] é inválida e não pode ser executada.")

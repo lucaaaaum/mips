@@ -1,0 +1,14 @@
+lw R0 R1 var1 
+lw R0 R2 var2 
+noop
+noop
+noop
+loop beq R1 R2 sair
+add R2 R1 R2
+noop
+noop
+sair halt
+noop
+noop
+var1 .fill 1
+var2 .fill 1
