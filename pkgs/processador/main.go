@@ -314,10 +314,12 @@ func (p *Processador) executarInstrução() error {
 		p.execute.ResultadoAlgébrico = valor0 + valor2
 	case inst.Add:
 		valor0, err := p.execute.ObterValor(0)
+		fmt.Printf("valor0: %v\n", valor0)
 		if err != nil {
 			return err
 		}
 		valor1, err := p.execute.ObterValor(1)
+		fmt.Printf("valor1: %v\n", valor1)
 		if err != nil {
 			return err
 		}
