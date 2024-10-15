@@ -10,6 +10,7 @@ import (
 
 	"github.com/inancgumus/screen"
 	inst "github.com/lucaaaaum/mips/pkgs/instrucao"
+	pred "github.com/lucaaaaum/mips/pkgs/predicao"
 )
 
 type Processador struct {
@@ -24,14 +25,23 @@ type Processador struct {
 	decode, execute, memoryAccess, writeBack *inst.Instrução
 	posiçõesDasInstruções                    [5]int
 	halt                                     bool
+	utilizarPredição                         bool
+	tabelaDePredição                         *pred.TabelaDePredição
 }
 
-func New(instruções []string) *Processador {
-	return &Processador{
+func New(instruções []string, utilizarPredição bool) *Processador {
+	p := &Processador{
 		instruções:       instruções,
 		labelsMemória:    make(map[string]int),
 		labelsInstruções: make(map[string]int),
+		utilizarPredição: utilizarPredição,
 	}
+
+	if utilizarPredição {
+		p.tabelaDePredição = pred.New()
+	}
+
+	return p
 }
 
 func (p *Processador) armazenarNaMemóriaComLabel(label string, valor int) error {
@@ -67,6 +77,9 @@ func (p *Processador) Processar() error {
 		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
 		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
 		fmt.Printf("posiçõesDasInstruções: %v\n", p.posiçõesDasInstruções)
+        if p.utilizarPredição {
+            p.tabelaDePredição.Imprimir()
+        }
 		for i := 0; i < len(p.instruções); i++ {
 			identificadorDaLinha := "       "
 			switch i {
@@ -211,7 +224,7 @@ func (p *Processador) obterPróximaInstrução() (string, error) {
 	}
 
 	if p.pc < 0 || p.pc > len(instruçõesMips)-1 {
-        return "noop", nil
+		return "noop", nil
 		// return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
 	}
 
