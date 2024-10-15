@@ -5,8 +5,13 @@ import (
 	"fmt"
 )
 
+type item struct {
+	endereço, valor int
+	preenchido      bool
+}
+
 type TabelaDePredição struct {
-	endereços, valores [32]int
+	predições [32]item
 }
 
 func New() *TabelaDePredição {
@@ -14,11 +19,24 @@ func New() *TabelaDePredição {
 }
 
 func (t *TabelaDePredição) Incrementar(endereço int) error {
-	for i := 0; i < len(t.endereços); i++ {
-		if t.endereços[i] == endereço {
-			if t.valores[i] < 2 {
-				t.valores[i]++
+	for i := 0; i < len(t.predições); i++ {
+		p := t.predições[i]
+
+		if p.endereço == endereço {
+			if p.valor < 2 {
+				p.valor++
 			}
+			return nil
+		}
+	}
+
+	for i := 0; i < len(t.predições); i++ {
+		p := t.predições[i]
+
+		if !p.preenchido {
+			p.endereço = endereço
+			p.valor = 1
+			p.preenchido = true
 			return nil
 		}
 	}
@@ -27,11 +45,24 @@ func (t *TabelaDePredição) Incrementar(endereço int) error {
 }
 
 func (t *TabelaDePredição) Decrementar(endereço int) error {
-	for i := 0; i < len(t.endereços); i++ {
-		if t.endereços[i] == endereço {
-			if t.valores[i] > 0 {
-				t.valores[i]--
+	for i := 0; i < len(t.predições); i++ {
+		p := t.predições[i]
+
+		if p.endereço == endereço {
+			if p.valor < 2 {
+				p.valor--
 			}
+			return nil
+		}
+	}
+
+	for i := 0; i < len(t.predições); i++ {
+		p := t.predições[i]
+
+		if !p.preenchido {
+			p.endereço = endereço
+			p.valor = 0
+			p.preenchido = true
 			return nil
 		}
 	}
@@ -40,9 +71,9 @@ func (t *TabelaDePredição) Decrementar(endereço int) error {
 }
 
 func (t *TabelaDePredição) TomarDesvio(endereço int) (bool, error) {
-	for i := 0; i < len(t.endereços); i++ {
-		if t.endereços[i] == endereço {
-			if t.valores[i] > 0 {
+	for i := 0; i < len(t.predições); i++ {
+		if t.predições[i].endereço == endereço {
+			if t.predições[i].valor > 0 {
 				return true, nil
 			} else {
 				return false, nil
@@ -54,5 +85,11 @@ func (t *TabelaDePredição) TomarDesvio(endereço int) (bool, error) {
 }
 
 func (t *TabelaDePredição) Imprimir() {
-	fmt.Printf("tabela de predição: %v\n", t)
+	fmt.Printf("tabela de predição:\n")
+	for i := 0; i < len(t.predições); i++ {
+		p := t.predições[i]
+		if p.preenchido {
+			fmt.Printf("[%v] predição: %v\n", i, p)
+		}
+	}
 }
