@@ -66,23 +66,23 @@ func (p *Processador) Processar() error {
 		fmt.Printf("memória: %v\n", p.memória)
 		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
 		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
+		fmt.Printf("posiçõesDasInstruções: %v\n", p.posiçõesDasInstruções)
 		for i := 0; i < len(p.instruções); i++ {
 			identificadorDaLinha := "       "
-			if i == p.posiçõesDasInstruções[0] {
+			switch i {
+			case p.posiçõesDasInstruções[0]:
 				identificadorDaLinha = "IF  -> "
-			} else if i == p.posiçõesDasInstruções[1] {
+			case p.posiçõesDasInstruções[1]:
 				identificadorDaLinha = "ID  -> "
-			} else if i == p.posiçõesDasInstruções[2] {
+			case p.posiçõesDasInstruções[2]:
 				identificadorDaLinha = "EX  -> "
-			} else if i == p.posiçõesDasInstruções[3] {
+			case p.posiçõesDasInstruções[3]:
 				identificadorDaLinha = "Mem -> "
-			} else if i == p.posiçõesDasInstruções[4] {
+			case p.posiçõesDasInstruções[4]:
 				identificadorDaLinha = "WB  -> "
 			}
 			fmt.Println("[" + fmt.Sprint(i) + "]" + identificadorDaLinha + p.instruções[i])
 		}
-
-        fmt.Printf("p: %v\n", p)
 
 		// fetch
 		if !p.halt {
