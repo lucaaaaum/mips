@@ -133,6 +133,7 @@ func (p *Processador) Processar() error {
 		for i := 4; i > 0; i-- {
 			p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
 		}
+        p.posiçõesDasInstruções[0] = p.pc
 		p.clock++
 
 		reader := bufio.NewReader(os.Stdin)
@@ -292,7 +293,7 @@ func (p *Processador) carregarValoresDosRegistradores() error {
 
 func éNúmero(s string) bool {
 	_, err := strconv.Atoi(s)
-	return err != nil
+	return err == nil
 }
 
 func (p *Processador) executarInstrução() error {
@@ -356,7 +357,7 @@ func (p *Processador) executarInstrução() error {
 			p.decode = &inst.Instrução{LinhaDeOrigem: "noop", Tipo: inst.Noop}
 			p.fetch = "noop"
 			p.posiçõesDasInstruções[0] = -1
-			p.posiçõesDasInstruções[1] = -2
+			p.posiçõesDasInstruções[1] = -1
 		}
 	case inst.Halt:
 		p.halt = true
@@ -373,7 +374,6 @@ func (p *Processador) acessarMemória() error {
 		return nil
 	}
 
-	fmt.Printf("p.memoryAccess: %v\n", p.memoryAccess.ResultadoAlgébrico)
 	switch p.memoryAccess.Tipo {
 	case inst.Lw:
 		p.memoryAccess.ResultadoMemória = p.memória[p.memoryAccess.ResultadoAlgébrico]
@@ -398,7 +398,6 @@ func (p *Processador) escreverRegistradores() error {
 
 	switch p.writeBack.Tipo {
 	case inst.Add, inst.Sub:
-		fmt.Printf("p.writeBack: %v\n", p.writeBack)
 		regDestino, err := p.writeBack.ObterRegistradorDosParâmetros(2)
 		if err != nil {
 			return err
