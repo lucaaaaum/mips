@@ -133,7 +133,7 @@ func (p *Processador) Processar() error {
 		for i := 4; i > 0; i-- {
 			p.posiçõesDasInstruções[i] = p.posiçõesDasInstruções[i-1]
 		}
-        p.posiçõesDasInstruções[0] = p.pc
+		p.posiçõesDasInstruções[0] = p.pc
 		p.clock++
 
 		reader := bufio.NewReader(os.Stdin)
