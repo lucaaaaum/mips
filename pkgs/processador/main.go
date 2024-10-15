@@ -211,10 +211,8 @@ func (p *Processador) obterPróximaInstrução() (string, error) {
 	}
 
 	if p.pc < 0 || p.pc > len(instruçõesMips)-1 {
-		if p.pc == len(instruçõesMips) {
-			return "noop", nil
-		}
-		return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
+        return "noop", nil
+		// return "", errors.New("PC [" + fmt.Sprint(p.pc) + "] aponta para uma instrução inexistente.")
 	}
 
 	return p.instruções[p.pc], nil

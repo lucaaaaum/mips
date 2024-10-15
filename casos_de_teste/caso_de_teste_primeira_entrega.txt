@@ -16,10 +16,6 @@ noop
 noop
 noop
 done halt
-noop
-noop
-noop
-noop
 neg1 .fill -1
 ten .fill 10
 one .fill 1
