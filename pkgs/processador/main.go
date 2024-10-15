@@ -356,7 +356,7 @@ func (p *Processador) executarInstrução() error {
 			p.decode = &inst.Instrução{LinhaDeOrigem: "noop", Tipo: inst.Noop}
 			p.fetch = "noop"
 			p.posiçõesDasInstruções[0] = -1
-			p.posiçõesDasInstruções[1] = -1
+			p.posiçõesDasInstruções[1] = -2
 		}
 	case inst.Halt:
 		p.halt = true
