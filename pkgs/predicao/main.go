@@ -50,5 +50,9 @@ func (t *TabelaDePredição) TomarDesvio(endereço int) (bool, error) {
 		}
 	}
 
-    return false, errors.New("O endereço [" + fmt.Sprint(endereço) + "] não foi encontrado na tabela de predição.")
+	return false, errors.New("O endereço [" + fmt.Sprint(endereço) + "] não foi encontrado na tabela de predição.")
+}
+
+func (t *TabelaDePredição) Imprimir() {
+	fmt.Printf("tabela de predição: %v\n", t)
 }
