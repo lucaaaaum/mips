@@ -77,9 +77,9 @@ func (p *Processador) Processar() error {
 		fmt.Printf("labelsMemória: %v\n", p.labelsMemória)
 		fmt.Printf("labelsInstruções: %v\n", p.labelsInstruções)
 		fmt.Printf("posiçõesDasInstruções: %v\n", p.posiçõesDasInstruções)
-        if p.utilizarPredição {
-            p.tabelaDePredição.Imprimir()
-        }
+		if p.utilizarPredição {
+			p.tabelaDePredição.Imprimir()
+		}
 		for i := 0; i < len(p.instruções); i++ {
 			identificadorDaLinha := "       "
 			switch i {
@@ -348,13 +348,25 @@ func (p *Processador) executarInstrução() error {
 		if err != nil {
 			return err
 		}
+
 		valor1, err := p.execute.ObterValor(1)
 		if err != nil {
 			return err
 		}
+
 		p.execute.ResultadoBooleano = valor0 == valor1
+
+		// Aplicar desvio se necessário
 		if p.execute.ResultadoBooleano {
+			if p.utilizarPredição {
+				err := p.tabelaDePredição.Incrementar(p.posiçõesDasInstruções[2])
+				if err != nil {
+					return err
+				}
+			}
+
 			parâmetroDePosiçãoDeInstrução := p.execute.ObterParâmetro(2)
+
 			if éNúmero(parâmetroDePosiçãoDeInstrução) {
 				novoPc, err := strconv.Atoi(parâmetroDePosiçãoDeInstrução)
 				if err != nil {
@@ -365,10 +377,18 @@ func (p *Processador) executarInstrução() error {
 				novoPc := p.labelsInstruções[parâmetroDePosiçãoDeInstrução]
 				p.pc = novoPc
 			}
+
 			p.decode = &inst.Instrução{LinhaDeOrigem: "noop", Tipo: inst.Noop}
 			p.fetch = "noop"
 			p.posiçõesDasInstruções[0] = -1
 			p.posiçõesDasInstruções[1] = -1
+		} else {
+			if p.utilizarPredição {
+				err := p.tabelaDePredição.Decrementar(p.posiçõesDasInstruções[2])
+				if err != nil {
+					return err
+				}
+			}
 		}
 	case inst.Halt:
 		p.halt = true
