@@ -1,5 +1,9 @@
 # Simulador MIPS
 
+## Acesso
+
+O projeto está disponibilizado no github neste [link](https://github.com/lucaaaaum/mips).
+
 ## Como compilar
 
 Para compilar o programa, é necessário ter o SDK de Go instalado. Em seguida, execute este comando no terminal:
