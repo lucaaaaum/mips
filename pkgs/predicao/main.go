@@ -11,11 +11,19 @@ type item struct {
 }
 
 type TabelaDePredição struct {
-	predições [32]item
+	predições [32]*item
+}
+
+func newItem() *item {
+	return &item{}
 }
 
 func New() *TabelaDePredição {
-	return &TabelaDePredição{}
+    t := &TabelaDePredição{}
+    for i := 0; i < len(t.predições); i++ {
+        t.predições[i] = newItem()
+    }
+    return t
 }
 
 func (t *TabelaDePredição) Incrementar(endereço int) error {
@@ -49,7 +57,7 @@ func (t *TabelaDePredição) Decrementar(endereço int) error {
 		p := t.predições[i]
 
 		if p.endereço == endereço {
-			if p.valor < 2 {
+			if p.valor > 0 {
 				p.valor--
 			}
 			return nil
